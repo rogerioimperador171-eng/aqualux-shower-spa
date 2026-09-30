@@ -58,7 +58,7 @@ function Store() {
       <div className="grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:gap-10 md:pt-7">
         <section aria-label="Fotos do produto" className="min-w-0 md:sticky md:top-24 md:self-start">
           <div className="product-stage relative mx-4 mt-4 aspect-square overflow-hidden rounded-md border border-border/30 md:mx-0 md:mt-0" onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const end = event.changedTouches[0]?.clientX; if (touchStart.current !== null && end !== undefined && Math.abs(touchStart.current - end) > 40) moveImage(touchStart.current > end ? 1 : -1); touchStart.current = null; }}>
-            <img src={photos[image].url} alt={`Chuveiro AquaLux Showers — foto ${image + 1} de ${photos.length}`} className="select-none" draggable={false} />
+            <img src={photos[image]?.url ?? photo0.url} alt={`Chuveiro AquaLux Showers — foto ${image + 1} de ${photos.length}`} className="select-none" draggable={false} />
             <span className="absolute left-3 top-3 rounded-full bg-success px-3 py-1 text-xs font-bold text-success-foreground">67% OFF</span>
             <Button variant="outline" size="icon" aria-label="Foto anterior" title="Foto anterior" onClick={() => moveImage(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full opacity-80"><ChevronLeft /></Button>
             <Button variant="outline" size="icon" aria-label="Próxima foto" title="Próxima foto" onClick={() => moveImage(1)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full opacity-80"><ChevronRight /></Button>
