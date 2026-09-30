@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+The storefront is a single TanStack Start product page with client-side cart state; do not reuse the archived checkout, which is tied to the old football product.
+Uploaded product photos are referenced through Lovable Assets pointer files in src/assets to keep binary media out of the repository.
