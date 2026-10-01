@@ -1,0 +1,17 @@
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # bun.lock (text lockfile) and minimumReleaseAge in bunfig.toml need Bun >= 1.3
+  BUN_VERSION = "1.3.12"
+  NITRO_PRESET = "netlify"
+
+# Product photos are Lovable Assets (src/assets/*.asset.json) served from
+# /__l5e/assets-v1/*, which only exists on Lovable hosting — proxy it there.
+[[redirects]]
+  from = "/__l5e/assets-v1/*"
+  to = "https://c2e9814b-74f2-455f-9555-0679808f550e.lovableproject.com/__l5e/assets-v1/:splat"
+  status = 200
+  force = true
