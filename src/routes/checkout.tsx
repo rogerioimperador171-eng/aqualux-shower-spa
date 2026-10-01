@@ -1,11 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { ArrowRight, Check, ChevronUp, Copy, CreditCard, Lock, MapPin, ShieldCheck, Truck, User } from "lucide-react";
+import { AlertCircle, ArrowRight, Check, ChevronUp, Copy, CreditCard, Lock, MapPin, ShieldCheck, Truck, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import photo0 from "@/assets/IMG_4660.jpeg.asset.json";
-import { checkPix, createPix } from "@/lib/pix.functions";
 
 const PRICE = 65.67;
 const productName = "Chuveiro Luxo a Gás 60cm Banho Ducha Luxuosa e Chuveiro de mão 2 Saídas Instalação Padrão Hotel Ajustável";
@@ -29,6 +27,29 @@ const onlyDigits = (v: string) => v.replace(/\D/g, "");
 const maskCpf = (v: string) => { const d = onlyDigits(v).slice(0, 11); return d.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2"); };
 const maskPhone = (v: string) => { const d = onlyDigits(v).slice(0, 11); return d.length <= 2 ? d.replace(/(\d{1,2})/, "($1") : d.length <= 7 ? d.replace(/(\d{2})(\d+)/, "($1) $2") : d.replace(/(\d{2})(\d{5})(\d+)/, "($1) $2-$3"); };
 const maskCep = (v: string) => onlyDigits(v).slice(0, 8).replace(/^(\d{5})(\d)/, "$1-$2");
+const maskCard = (v: string) => onlyDigits(v).slice(0, 16).replace(/(\d{4})(?=\d)/g, "$1 ");
+const maskExpiry = (v: string) => onlyDigits(v).slice(0, 4).replace(/^(\d{2})(\d)/, "$1/$2");
+
+function validExpiry(v: string) {
+  const [m, y] = v.split("/").map(Number);
+  if (!m || m > 12 || y === undefined || v.length !== 5) return false;
+  const now = new Date(), year = 2000 + y;
+  return year > now.getFullYear() || (year === now.getFullYear() && m >= now.getMonth() + 1);
+}
+
+// Chamadas às Netlify Functions: as credenciais da ProPix ficam só no servidor.
+async function callFunction<T>(name: string, body: unknown, timeoutMs: number): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`/.netlify/functions/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+type PixResponse = { ok: true; transactionId: string; copyPaste: string; qrcodeUrl: string; status: string } | { ok: false; error: string; timeout?: boolean };
+type CheckResponse = { ok: true; state: string } | { ok: false; error: string };
 
 function validCpf(raw: string) {
   const c = onlyDigits(raw);
@@ -61,8 +82,10 @@ function Checkout() {
   const [pixError, setPixError] = useState("");
   const [paid, setPaid] = useState(false);
   const [copied, setCopied] = useState(false);
-  const createPixFn = useServerFn(createPix);
-  const checkPixFn = useServerFn(checkPix);
+  const [card, setCard] = useState({ number: "", name: "", expiry: "", cvv: "" });
+  const [cardTouched, setCardTouched] = useState(false);
+  const [cardLoading, setCardLoading] = useState(false);
+  const [cardError, setCardError] = useState(false);
   const stepRef = useRef<HTMLDivElement>(null);
 
   const shippingCost = shipping === "sedex" ? 21.88 : 0;
@@ -72,18 +95,22 @@ function Checkout() {
   useEffect(() => { const t = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { stepRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [step]);
 
-  // Polling a cada 3s até transactionState === COMPLETO
+  // Polling a cada 3s até transactionState === COMPLETO (sem sobrepor requisições)
   useEffect(() => {
     if (!pix || paid) return;
     let active = true;
-    const t = setInterval(async () => {
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
       try {
-        const r = await checkPixFn({ data: { transactionId: pix.transactionId } });
-        if (active && r.ok && r.state === "COMPLETO") { setPaid(true); clearInterval(t); }
+        const r = await callFunction<CheckResponse>("pix-check", { transactionId: pix.transactionId }, 12000);
+        if (!active) return;
+        if (r.ok && r.state === "COMPLETO") { setPaid(true); return; }
       } catch { /* tenta novamente no próximo ciclo */ }
-    }, 3000);
-    return () => { active = false; clearInterval(t); };
-  }, [pix, paid, checkPixFn]);
+      if (active) timer = setTimeout(poll, 3000);
+    };
+    timer = setTimeout(poll, 3000);
+    return () => { active = false; clearTimeout(timer); };
+  }, [pix, paid]);
 
   const pErr = {
     name: p.name.trim().split(/\s+/).length < 2 ? "Informe nome e sobrenome." : "",
@@ -110,11 +137,29 @@ function Checkout() {
   async function generatePix() {
     setPixLoading(true); setPixError("");
     try {
-      const r = await createPixFn({ data: { quantity, payerName: p.name.trim(), payerDocument: onlyDigits(p.cpf) } });
+      const r = await callFunction<PixResponse>("pix-create", { quantity, shipping, payerName: p.name.trim(), payerDocument: onlyDigits(p.cpf) }, 20000);
       if (r.ok) setPix({ transactionId: r.transactionId, copyPaste: r.copyPaste, qrcodeUrl: r.qrcodeUrl });
-      else setPixError(r.error);
-    } catch { setPixError("Falha de conexão. Verifique sua internet e tente novamente."); }
+      else setPixError(r.error || "Não foi possível gerar o PIX agora. Tente novamente.");
+    } catch (err) {
+      setPixError(err instanceof Error && err.name === "AbortError" ? "O servidor de pagamento demorou para responder. Tente novamente." : "Falha de conexão. Verifique sua internet e tente novamente.");
+    }
     finally { setPixLoading(false); }
+  }
+
+  const cErr = {
+    number: onlyDigits(card.number).length >= 13 ? "" : "Informe um número de cartão válido.",
+    name: card.name.trim().length >= 3 ? "" : "Informe o nome impresso no cartão.",
+    expiry: validExpiry(card.expiry) ? "" : "Data inválida.",
+    cvv: /^\d{3,4}$/.test(card.cvv) ? "" : "CVV inválido.",
+  };
+
+  // O cartão não é processado: os dados não saem do navegador e são descartados,
+  // e o cliente é orientado a concluir o pagamento pelo PIX.
+  function payWithCard() {
+    setCardTouched(true); setCardError(false);
+    if (Object.values(cErr).some(Boolean)) return;
+    setCardLoading(true);
+    setTimeout(() => { setCardLoading(false); setCardError(true); setCard({ number: "", name: "", expiry: "", cvv: "" }); setCardTouched(false); }, 1500);
   }
 
   async function copyPix() {
@@ -249,7 +294,21 @@ function Checkout() {
           </div>
           <div className={`mt-3 rounded-lg border-2 p-3 ${method === "card" ? "border-primary" : "border-border"}`}>
             <button type="button" onClick={() => setMethod("card")} className="flex w-full items-center gap-3 text-left"><Radio on={method === "card"} /><strong className="flex-1 text-sm">Cartão de crédito</strong><CreditCard className="size-5 text-muted-foreground" /></button>
-            {method === "card" && <p className="mt-3 text-sm leading-6 text-muted-foreground">No momento o pagamento por cartão está indisponível. Pague com PIX e aproveite o frete grátis.</p>}
+            {method === "card" && <div className="mt-4 space-y-3">
+              <p className="text-sm font-bold">Valor no cartão: <span className="price text-success">{money(total)}</span></p>
+              <Field label="Número do cartão" error={cardTouched ? cErr.number : ""}><input className={inputCls} inputMode="numeric" autoComplete="cc-number" placeholder="0000 0000 0000 0000" value={card.number} onChange={(e) => setCard({ ...card, number: maskCard(e.target.value) })} /></Field>
+              <Field label="Nome impresso no cartão" error={cardTouched ? cErr.name : ""}><input className={inputCls} autoComplete="cc-name" placeholder="Como está no cartão" value={card.name} onChange={(e) => setCard({ ...card, name: e.target.value.toUpperCase().slice(0, 60) })} /></Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Validade" error={cardTouched ? cErr.expiry : ""}><input className={inputCls} inputMode="numeric" autoComplete="cc-exp" placeholder="MM/AA" value={card.expiry} onChange={(e) => setCard({ ...card, expiry: maskExpiry(e.target.value) })} /></Field>
+                <Field label="CVV" error={cardTouched ? cErr.cvv : ""}><input className={inputCls} inputMode="numeric" autoComplete="cc-csc" placeholder="123" value={card.cvv} onChange={(e) => setCard({ ...card, cvv: onlyDigits(e.target.value).slice(0, 4) })} /></Field>
+              </div>
+              {cardError && <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                <p className="flex items-center gap-1.5 font-bold"><AlertCircle className="size-4 shrink-0" />Pagamento não aprovado</p>
+                <p className="mt-1 leading-5">Não foi possível processar o pagamento com cartão. Tente pagar com PIX — é rápido, seguro e aprovado na hora.</p>
+                <Button onClick={() => { setMethod("pix"); setCardError(false); }} className="mt-3 h-10 w-full text-sm font-bold">Pagar com Pix</Button>
+              </div>}
+              <Button onClick={payWithCard} disabled={cardLoading} className="h-11 w-full rounded-full text-sm font-bold"><Lock />{cardLoading ? "Processando pagamento…" : "Finalizar compra"}</Button>
+            </div>}
           </div>
         </>}
       </section>}
