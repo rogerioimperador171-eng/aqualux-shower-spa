@@ -249,7 +249,7 @@ function Checkout() {
           </div>
           <div className={`mt-3 rounded-lg border-2 p-4 ${method === "card" ? "border-primary" : "border-border"}`}>
             <button type="button" onClick={() => setMethod("card")} className="flex w-full items-center gap-3 text-left"><Radio on={method === "card"} /><strong className="flex-1 text-[15px]">Cartão de crédito</strong><CreditCard className="size-5 text-muted-foreground" /></button>
-            {method === "card" && <p className="mt-3 text-sm leading-6 text-muted-foreground">No momento o pagamento por cartão está indisponível. Pague com PIX e aproveite o frete grátis.</p>}
+            {method === "card" && <div className="mt-3 text-center"><p className="text-sm leading-6 text-muted-foreground">No momento o pagamento por cartão está indisponível. Pague com PIX e aproveite o frete grátis.</p><Button type="button" onClick={() => setMethod("pix")} className="mt-3 h-10 w-full rounded-full text-[13px] font-bold">Pagar com Pix</Button></div>}
           </div>
         </>}
       </section>}

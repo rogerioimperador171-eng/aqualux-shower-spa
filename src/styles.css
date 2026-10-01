@@ -28,7 +28,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-rating: var(--rating);
   --color-overlay: var(--overlay);
-  --font-sans: "Arial", "Helvetica Neue", sans-serif;
+  --font-sans: "Manrope", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
 }
 
 :root {
@@ -61,12 +62,27 @@
 @layer base {
   * { border-color: var(--border); }
   html { scroll-behavior: smooth; }
-  body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
-  button, input { font: inherit; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+  button, input, textarea, select { font: inherit; }
+  /* 16px evita o zoom automático do iPhone ao tocar nos campos */
+  input, textarea, select { font-size: 16px; }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.01em; }
 }
 
-.product-stage { background: var(--background); }
-.product-stage img { object-fit: contain; width: 100%; height: 100%; }
+.font-display { font-family: var(--font-display); }
+.brand-logo { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; }
+.eyebrow { font-family: var(--font-sans); font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; }
+.checkout-stripe { background: linear-gradient(90deg, var(--primary), var(--success)); }
+.product-stage { background: #fff; touch-action: pan-y; }
+.product-track { display: flex; height: 100%; will-change: transform; }
+.product-track.animate { transition: transform 320ms cubic-bezier(.22,.61,.36,1); }
+.product-slide { flex: 0 0 100%; height: 100%; }
+.product-slide img { object-fit: contain; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.thumb-strip { scrollbar-width: none; }
+.thumb-strip::-webkit-scrollbar { display: none; }
+/* Fora das camadas para vencer utilitários como text-sm: campos com menos de 16px fazem o iPhone dar zoom */
+input, textarea, select { font-size: 16px !important; }
 .newsletter-shade { background: var(--overlay); }
 .drawer-shade { background: var(--overlay); }
 @media (prefers-reduced-motion: reduce) {
