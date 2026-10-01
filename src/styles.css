@@ -28,7 +28,9 @@
   --color-success-foreground: var(--success-foreground);
   --color-rating: var(--rating);
   --color-overlay: var(--overlay);
-  --font-sans: "Arial", "Helvetica Neue", sans-serif;
+  --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Montserrat", "Inter", Arial, sans-serif;
+  --font-brand: "Playfair Display", Georgia, serif;
 }
 
 :root {
@@ -61,9 +63,20 @@
 @layer base {
   * { border-color: var(--border); }
   html { scroll-behavior: smooth; }
-  body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
-  button, input { font: inherit; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  button, input, select, textarea { font: inherit; }
+  /* iOS dá zoom em campos com fonte menor que 16px */
+  input, select, textarea { font-size: 16px !important; }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.01em; }
+  button, a, [role="button"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 }
+
+.brand-logo { font-family: var(--font-brand); font-weight: 700; letter-spacing: 0.01em; }
+.price { font-family: var(--font-sans); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.checkout-stripe { background: linear-gradient(90deg, var(--success), var(--primary)); }
+.slider-track { display: flex; height: 100%; transition: transform 0.35s ease; will-change: transform; }
+.slider-track > img { flex: 0 0 100%; }
 
 .product-stage { background: var(--background); }
 .product-stage img { object-fit: contain; width: 100%; height: 100%; }
