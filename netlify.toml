@@ -1,0 +1,9 @@
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # bun.lock (text lockfile) and minimumReleaseAge in bunfig.toml need Bun >= 1.3
+  BUN_VERSION = "1.3.12"
+  NITRO_PRESET = "netlify"
