@@ -85,3 +85,8 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+/* Oculta o badge "Powered by Netlify" e a barra da Netlify injetados no edge. */
+#nl-badge-frame,
+#nl-hud-frame {
+  display: none !important;
+}
