@@ -1,6 +1,6 @@
 # AquaLux Showers
 
-Loja de página única (TanStack Start + React + Vite + TypeScript) com carrinho no navegador e checkout com pagamento via PIX pela API **ProPix BR**, hospedada na Netlify.
+Loja de página única (TanStack Start + React + Vite + TypeScript) com carrinho no navegador e checkout com pagamento via PIX pela API **FlevoPay**, hospedada na Netlify.
 
 This project was built with [Lovable](https://lovable.dev). Alterações feitas no editor do Lovable são commitadas neste repositório e vice-versa.
 
@@ -39,7 +39,7 @@ netlify link               # vincula ao projeto e baixa as variáveis de ambient
 netlify dev                # site + Functions em http://localhost:8888
 ```
 
-Sem `netlify link`, crie um arquivo `.env` na raiz com `PROPAY_CLIENT_ID=...` e `PROPAY_CLIENT_SECRET=...`; o `netlify dev` lê esse arquivo. O `.env` está no `.gitignore` e nunca deve ser commitado.
+Sem `netlify link`, crie um arquivo `.env` na raiz com `FLEVOPAY_API_KEY=...` e `FLEVOPAY_PRODUCT_HASH=...`; o `netlify dev` lê esse arquivo. O `.env` está no `.gitignore` e nunca deve ser commitado.
 
 Para testar: adicione o produto ao carrinho → **Finalizar Compra** → preencha os dados (use um CPF válido) → endereço → **Pagar com Pix**. Se as credenciais estiverem ausentes ou a API falhar, aparece uma mensagem amigável e o botão **Tentar novamente**.
 
@@ -48,7 +48,7 @@ Teste direto das Functions:
 ```sh
 curl -X POST http://localhost:8888/.netlify/functions/pix-create \
   -H "Content-Type: application/json" \
-  -d '{"quantity":1,"shipping":"free","payerName":"Maria Silva","payerDocument":"52998224725"}'
+  -d '{"quantity":1,"shipping":"free","payerName":"Maria Silva","payerEmail":"maria@email.com","payerDocument":"52998224725","payerPhone":"11999999999"}'
 
 curl -X POST http://localhost:8888/.netlify/functions/pix-check \
   -H "Content-Type: application/json" -d '{"transactionId":"ID_RETORNADO"}'
@@ -56,9 +56,9 @@ curl -X POST http://localhost:8888/.netlify/functions/pix-check \
 
 ## Atualizar a API futuramente
 
-- **URL base**: defina `PROPAY_BASE_URL` ou altere `BASE_URL` em `netlify/lib/propix.mts`.
-- **Endpoints / campos enviados**: `netlify/functions/pix-create.mts` (deposit) e `netlify/functions/pix-check.mts` (check).
-- **Campos da resposta**: a leitura de `transactionId`, `copyPaste`, `qrcodeUrl` e `status` aceita nomes alternativos; inclua novos nomes nos mesmos arquivos se a ProPix mudar o formato.
-- **Status de pago**: o polling considera aprovado quando `transactionState` é `COMPLETO` (`src/routes/checkout.tsx`).
-- **Preço e frete**: `UNIT_PRICE` e `SHIPPING_PRICES` em `netlify/lib/propix.mts` (mantenha iguais aos valores exibidos no site).
+- **URL base**: altere `BASE_URL` em `netlify/lib/flevopay.mts`.
+- **Endpoints / campos enviados**: `netlify/functions/pix-create.mts` (transaction) e `netlify/functions/pix-check.mts` (check_status).
+- **Campos da resposta**: a leitura de `transactionId`, `copyPaste`, `qrcodeUrl` e `status` aceita nomes alternativos; inclua novos nomes nos mesmos arquivos se a FlevoPay mudar o formato.
+- **Status de pago**: a lista `PAID` em `netlify/functions/pix-check.mts` define quais status contam como pago (ex.: `paid`).
+- **Preço e frete**: `UNIT_PRICE` e `SHIPPING_PRICES` em `netlify/lib/flevopay.mts` (mantenha iguais aos valores exibidos no site).
 - **Timeouts**: 15 s para gerar o PIX e 10 s para consultar, em `pix-create.mts` / `pix-check.mts`.
