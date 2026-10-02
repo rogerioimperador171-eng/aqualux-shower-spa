@@ -1,4 +1,6 @@
-import { friendlyMessage, json, PropixError, propixPost, readJson, str } from "../lib/propix.mts";
+import { flevoFetch, friendlyMessage, json, PayError, pick, readJson } from "../lib/flevopay.mts";
+
+const PAID = new Set(["PAID", "APPROVED", "COMPLETED", "COMPLETO", "PAGO", "CONFIRMED"]);
 
 export default async (req: Request) => {
   if (req.method !== "POST") return json({ ok: false, error: "Método não permitido." }, 405);
@@ -8,9 +10,14 @@ export default async (req: Request) => {
   if (!transactionId || transactionId.length > 200) return json({ ok: false, error: "Transação inválida." }, 400);
 
   try {
-    const r = await propixPost("/api/v1/check", { transactionId }, 10000);
-    return json({ ok: true, state: str(r["transactionState"] ?? r["status"]).toUpperCase() });
+    const r = await flevoFetch(`/check_status.php?hash=${encodeURIComponent(transactionId)}`, { method: "GET" }, 10000);
+    const raw = pick(r, ["status", "payment_status", "paymentStatus", "transactionState", "state"]).toUpperCase();
+    const paid = PAID.has(raw) || r["paid"] === true;
+    if (!paid) return json({ ok: true, status: "pending" });
+    // A URL de upsell só é revelada depois do pagamento confirmado.
+    const redirectUrl = process.env["FLEVOPAY_UPSELL_URL"] || "";
+    return json({ ok: true, status: "paid", ...(redirectUrl ? { redirect_url: redirectUrl } : {}) });
   } catch (err) {
-    return json({ ok: false, error: friendlyMessage(err) }, err instanceof PropixError ? err.status : 502);
+    return json({ ok: false, error: friendlyMessage(err) }, err instanceof PayError ? err.status : 502);
   }
 };

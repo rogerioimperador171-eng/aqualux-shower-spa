@@ -4,50 +4,28 @@ Loja de página única (TanStack Start + React + Vite + TypeScript) com carrinho
 
 This project was built with [Lovable](https://lovable.dev). Alterações feitas no editor do Lovable são commitadas neste repositório e vice-versa.
 
-## Como funciona o pagamento
+## Como funciona o pagamento (FlevoPay)
 
-| Peça | Arquivo | Função |
-| --- | --- | --- |
-| Checkout (frontend) | `src/routes/checkout.tsx` | Chama as Netlify Functions, mostra QR Code, PIX Copia e Cola e faz o polling. |
-| Gerar PIX | `netlify/functions/pix-create.mts` | `POST /api/v1/deposit` na ProPix. Calcula o valor no servidor (quantidade × preço + frete). |
-| Consultar status | `netlify/functions/pix-check.mts` | `POST /api/v1/check` com o `transactionId`. |
-| Cliente da API | `netlify/lib/propix.mts` | URL base, headers, timeout, tratamento de erros, preço e frete. |
-| Fotos | `netlify/edge-functions/lovable-assets.ts` | Entrega na Netlify as fotos do Lovable Assets (`src/assets/*.asset.json`). |
+| Peça | Arquivo |
+| --- | --- |
+| Checkout | `src/routes/checkout.tsx` (QR Code, Copia e Cola, polling a cada 3 s) |
+| Gerar PIX | `netlify/functions/pix-create.mts` → `POST /api/v1/transaction` (valor em centavos calculado no servidor) |
+| Status | `netlify/functions/pix-check.mts` → `GET /api/v1/check_status.php?hash=...` |
+| Cliente da API | `netlify/lib/flevopay.mts` (preço, frete, timeouts) |
+| Meta Pixel | `src/lib/pixel.ts` (PageView, AddToCart, InitiateCheckout, Purchase) |
 
-Fluxo: o cliente clica em **Pagar com Pix** → `/.netlify/functions/pix-create` → a tela mostra QR Code, código copia e cola, botão **COPIAR PIX** e "Aguardando pagamento" → a cada 3 segundos `/.netlify/functions/pix-check` é consultada → quando `transactionState` for `COMPLETO`, a tela muda para "Pagamento aprovado!" sem recarregar.
+Quando pago, se `FLEVOPAY_UPSELL_URL` existir o cliente é redirecionado para ela (com as UTMs da URL atual); senão vê "Pagamento aprovado!". A API Key e a URL de upsell nunca vão para o navegador.
 
-O `x-client-secret` **nunca** vai para o navegador: só as Functions leem as credenciais, a partir de variáveis de ambiente.
-
-O pagamento com cartão mostra o formulário (número, nome, validade e CVV), mas não processa cartões: ao finalizar, aparece um aviso de pagamento não aprovado com o botão para pagar com PIX. Os dados do cartão não são enviados a nenhum servidor nem armazenados.
-
-## Variáveis de ambiente
+## Variáveis de ambiente (Netlify → Project configuration → Environment variables)
 
 | Variável | Obrigatória | Descrição |
 | --- | --- | --- |
-| `PROPAY_CLIENT_ID` | sim | Client ID da ProPix (`live_...`). |
-| `PROPAY_CLIENT_SECRET` | sim | Client Secret da ProPix (`sk_...`). Marque como **secreta**. |
-| `PROPAY_BASE_URL` | não | Padrão `https://api.propixbr.com`. |
-| `LOVABLE_ASSETS_ORIGIN` | não | Domínio de onde as fotos são buscadas. Padrão `https://aqualux-shower-spa.lovable.app`. |
+| `FLEVOPAY_API_KEY` | sim | Chave secreta da FlevoPay (marque "Contains secret values"). |
+| `FLEVOPAY_PRODUCT_HASH` | sim | Hash do produto na FlevoPay. |
+| `FLEVOPAY_UPSELL_URL` | não | Página para onde o cliente vai após pagar. |
+| `LOVABLE_ASSETS_ORIGIN` | não | Domínio das fotos. |
 
-### Configurar na Netlify
-
-1. Abra o projeto na Netlify → **Project configuration → Environment variables → Add a variable**.
-2. Crie `PROPAY_CLIENT_ID` com o seu Client ID.
-3. Crie `PROPAY_CLIENT_SECRET` com o seu Client Secret e marque **Contains secret values**. O escopo precisa incluir **Functions**.
-4. Faça um novo deploy (**Deploys → Trigger deploy → Deploy site**) para as Functions lerem os novos valores.
-
-Pela CLI (alternativa):
-
-```sh
-netlify env:set PROPAY_CLIENT_ID "seu_client_id"
-netlify env:set PROPAY_CLIENT_SECRET "seu_client_secret" --secret
-```
-
-Nunca coloque as credenciais em arquivos do repositório nem em variáveis `VITE_*` (estas vão para o navegador).
-
-### Alterar o Client ID e o Client Secret
-
-Edite os valores de `PROPAY_CLIENT_ID` / `PROPAY_CLIENT_SECRET` em **Environment variables** e faça um novo deploy. Nenhum código precisa mudar.
+Depois de salvar, faça um novo deploy.
 
 ## Publicar na Netlify
 
