@@ -11,6 +11,7 @@ import photo5 from "@/assets/IMG_4665.jpeg.asset.json";
 import photo6 from "@/assets/IMG_4666.jpeg.asset.json";
 import photo7 from "@/assets/IMG_4667.jpeg.asset.json";
 import photo8 from "@/assets/IMG_4668.jpeg.asset.json";
+import { trackPixel } from "@/lib/pixel";
 
 const productName = "Chuveiro Luxo a Gás 60cm Banho Ducha Luxuosa e Chuveiro de mão 2 Saídas Instalação Padrão Hotel Ajustável";
 const photos = [photo0, photo2, photo1, photo3, photo4, photo5, photo6, photo7, photo8];
@@ -41,7 +42,7 @@ function Store() {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const horizontal = useRef(false);
   const moveImage = (step: number) => setImage((current) => (current + step + photos.length) % photos.length);
-  const addToCart = () => { setQuantity((value) => value + 1); setCartOpen(true); };
+  const addToCart = () => { trackPixel("AddToCart", { value: 65.67, currency: "BRL" }); setQuantity((value) => value + 1); setCartOpen(true); };
   const checkZip = () => {
     if (zip.replace(/\D/g, "").length !== 8) { setZipMessage("Digite um CEP válido com 8 números."); return; }
     setZipMessage("Entrega estimada em 7–12 dias úteis");

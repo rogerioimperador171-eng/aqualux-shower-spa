@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AlertCircle, ArrowRight, Check, ChevronUp, Copy, CreditCard, Lock, MapPin, ShieldCheck, Truck, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import photo0 from "@/assets/IMG_4660.jpeg.asset.json";
+import { trackPixel } from "@/lib/pixel";
 
 const PRICE = 65.67;
 const productName = "Chuveiro Luxo a Gás 60cm Banho Ducha Luxuosa e Chuveiro de mão 2 Saídas Instalação Padrão Hotel Ajustável";
@@ -49,7 +50,7 @@ async function callFunction<T>(name: string, body: unknown, timeoutMs: number): 
   }
 }
 type PixResponse = { ok: true; transactionId: string; copyPaste: string; qrcodeUrl: string; status: string } | { ok: false; error: string; timeout?: boolean };
-type CheckResponse = { ok: true; state: string } | { ok: false; error: string };
+type CheckResponse = { ok: true; status: string; redirect_url?: string } | { ok: false; error: string };
 
 function validCpf(raw: string) {
   const c = onlyDigits(raw);
@@ -104,13 +105,25 @@ function Checkout() {
       try {
         const r = await callFunction<CheckResponse>("pix-check", { transactionId: pix.transactionId }, 12000);
         if (!active) return;
-        if (r.ok && r.state === "COMPLETO") { setPaid(true); return; }
+        if (r.ok && r.status === "paid") {
+          trackPixel("Purchase", { value: Math.round((quantity * 65.67 + (shipping === "sedex" ? 21.88 : 0)) * 100) / 100, currency: "BRL" });
+          if (r.redirect_url) {
+            // Repassa UTMs e demais parâmetros da URL atual para a página de destino.
+            const dest = new URL(r.redirect_url);
+            new URLSearchParams(window.location.search).forEach((v, k) => { if (!dest.searchParams.has(k)) dest.searchParams.set(k, v); });
+            window.location.href = dest.toString();
+            return;
+          }
+          setPaid(true); return;
+        }
       } catch { /* tenta novamente no próximo ciclo */ }
       if (active) timer = setTimeout(poll, 3000);
     };
     timer = setTimeout(poll, 3000);
     return () => { active = false; clearTimeout(timer); };
-  }, [pix, paid]);
+  }, [pix, paid, quantity, shipping]);
+
+  useEffect(() => { trackPixel("InitiateCheckout", { currency: "BRL", num_items: quantity }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pErr = {
     name: p.name.trim().split(/\s+/).length < 2 ? "Informe nome e sobrenome." : "",
@@ -137,7 +150,7 @@ function Checkout() {
   async function generatePix() {
     setPixLoading(true); setPixError("");
     try {
-      const r = await callFunction<PixResponse>("pix-create", { quantity, shipping, payerName: p.name.trim(), payerDocument: onlyDigits(p.cpf) }, 20000);
+      const r = await callFunction<PixResponse>("pix-create", { quantity, shipping, payerName: p.name.trim(), payerEmail: p.email.trim(), payerDocument: onlyDigits(p.cpf), payerPhone: onlyDigits(p.phone) }, 20000);
       if (r.ok) setPix({ transactionId: r.transactionId, copyPaste: r.copyPaste, qrcodeUrl: r.qrcodeUrl });
       else setPixError(r.error || "Não foi possível gerar o PIX agora. Tente novamente.");
     } catch (err) {
