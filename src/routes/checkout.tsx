@@ -5,6 +5,7 @@ import { AlertCircle, ArrowRight, Check, ChevronUp, Copy, CreditCard, Lock, MapP
 import { Button } from "@/components/ui/button";
 import photo0 from "@/assets/IMG_4660.jpeg.asset.json";
 import { trackPixel } from "@/lib/pixel";
+import { withCampaignParams } from "@/lib/utm";
 
 const PRICE = 65.67;
 const productName = "Chuveiro Luxo a Gás 60cm Banho Ducha Luxuosa e Chuveiro de mão 2 Saídas Instalação Padrão Hotel Ajustável";
@@ -38,7 +39,7 @@ function validExpiry(v: string) {
   return year > now.getFullYear() || (year === now.getFullYear() && m >= now.getMonth() + 1);
 }
 
-// Chamadas às Netlify Functions: as credenciais da ProPix ficam só no servidor.
+// Chamadas às Netlify Functions: as credenciais da FlevoPay ficam só no servidor.
 async function callFunction<T>(name: string, body: unknown, timeoutMs: number): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -96,7 +97,7 @@ function Checkout() {
   useEffect(() => { const t = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000); return () => clearInterval(t); }, []);
   useEffect(() => { stepRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [step]);
 
-  // Polling a cada 3s até transactionState === COMPLETO (sem sobrepor requisições)
+  // Polling a cada 3s até o pagamento ser confirmado (sem sobrepor requisições)
   useEffect(() => {
     if (!pix || paid) return;
     let active = true;
@@ -107,13 +108,10 @@ function Checkout() {
         if (!active) return;
         if (r.ok && r.status === "paid") {
           trackPixel("Purchase", { value: Math.round((quantity * 65.67 + (shipping === "sedex" ? 21.88 : 0)) * 100) / 100, currency: "BRL" });
-          if (r.redirect_url) {
-            // Repassa UTMs e demais parâmetros da URL atual para a página de destino.
-            const dest = new URL(r.redirect_url);
-            new URLSearchParams(window.location.search).forEach((v, k) => { if (!dest.searchParams.has(k)) dest.searchParams.set(k, v); });
-            window.location.href = dest.toString();
-            return;
-          }
+          // Repassa UTMs e demais parâmetros de campanha para a página de destino.
+          let dest = "";
+          try { if (r.redirect_url) dest = withCampaignParams(r.redirect_url); } catch { /* URL inválida: mostra a confirmação */ }
+          if (dest) { window.location.href = dest; return; }
           setPaid(true); return;
         }
       } catch { /* tenta novamente no próximo ciclo */ }
