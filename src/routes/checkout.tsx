@@ -114,6 +114,9 @@ function Checkout() {
           if (dest) { window.location.href = dest; return; }
           setPaid(true); return;
         }
+        if (r.ok && r.status === "failed") {
+          setPix(null); setPixError("Este PIX expirou ou foi recusado. Gere um novo código para concluir o pagamento."); return;
+        }
       } catch { /* tenta novamente no próximo ciclo */ }
       if (active) timer = setTimeout(poll, 3000);
     };
