@@ -21,7 +21,7 @@ Quando pago, se `FLEVOPAY_UPSELL_URL` existir o cliente é redirecionado para el
 | Variável | Obrigatória | Descrição |
 | --- | --- | --- |
 | `FLEVOPAY_API_KEY` | sim | Chave secreta da FlevoPay (marque "Contains secret values"). |
-| `FLEVOPAY_PRODUCT_HASH` | sim | Hash do produto na FlevoPay. |
+| `FLEVOPAY_PRODUCT_HASH` | não | Não é mais usado (envio com `source: "api_externa"`). |
 | `FLEVOPAY_UPSELL_URL` | não | Página para onde o cliente vai após pagar. |
 | `LOVABLE_ASSETS_ORIGIN` | não | Domínio das fotos. |
 
