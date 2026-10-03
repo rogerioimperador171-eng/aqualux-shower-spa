@@ -39,13 +39,18 @@ function validExpiry(v: string) {
   return year > now.getFullYear() || (year === now.getFullYear() && m >= now.getMonth() + 1);
 }
 
-// Chamadas às Netlify Functions: as credenciais da FlevoPay ficam só no servidor.
-async function callFunction<T>(name: string, body: unknown, timeoutMs: number): Promise<T> {
+// Chamadas ao servidor (/api/pix/* no Lovable; na Netlify é redirecionado às Functions).
+// As credenciais da FlevoPay ficam só no servidor.
+async function callFunction<T>(name: "pix-create" | "pix-check", body: unknown, timeoutMs: number): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const path = name === "pix-create" ? "/api/pix/create" : "/api/pix/check";
   try {
-    const res = await fetch(`/.netlify/functions/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
-    return (await res.json()) as T;
+    const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
+    const text = await res.text();
+    try { return JSON.parse(text) as T; } catch {
+      return { ok: false, error: "Pagamento temporariamente indisponível. Tente novamente em instantes." } as T;
+    }
   } finally {
     clearTimeout(timer);
   }
