@@ -26,7 +26,7 @@ async function flevoFetch(path: string, init: { method: "GET" | "POST"; body?: u
     const res = await fetch(`${BASE_URL}${path}`, {
       method: init.method,
       headers: { "Content-Type": "application/json", Accept: "application/json", "X-API-Key": key },
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      body: init.body === undefined ? null : JSON.stringify(init.body),
       signal: controller.signal,
     });
     const text = await res.text();
