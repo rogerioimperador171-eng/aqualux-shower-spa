@@ -9,9 +9,9 @@ This project was built with [Lovable](https://lovable.dev). Alterações feitas 
 | Peça | Arquivo |
 | --- | --- |
 | Checkout | `src/routes/checkout.tsx` (QR Code, Copia e Cola, polling a cada 3 s) |
-| Gerar PIX | `netlify/functions/pix-create.mts` → `POST /api/v1/transaction` (valor em centavos calculado no servidor) |
+| Gerar PIX | `netlify/functions/pix-create.mts` (lógica em `src/lib/flevopay.server.ts`) → `POST /api/v1/transaction` (valor em centavos calculado no servidor) |
 | Status | `netlify/functions/pix-check.mts` → `GET /api/v1/check_status.php?hash=...` |
-| Cliente da API | `netlify/lib/flevopay.mts` (preço, frete, timeouts) |
+| Cliente da API | `src/lib/flevopay.server.ts` (preço, frete, timeouts) |
 | Meta Pixel | `src/lib/pixel.ts` (PageView, AddToCart, InitiateCheckout, Purchase) |
 
 Quando pago, se `FLEVOPAY_UPSELL_URL` existir o cliente é redirecionado para ela (com as UTMs da URL atual); senão vê "Pagamento aprovado!". A API Key e a URL de upsell nunca vão para o navegador.
@@ -56,9 +56,9 @@ curl -X POST http://localhost:8888/.netlify/functions/pix-check \
 
 ## Atualizar a API futuramente
 
-- **URL base**: altere `BASE_URL` em `netlify/lib/flevopay.mts`.
+- **URL base**: altere `BASE_URL` em `src/lib/flevopay.server.ts`.
 - **Endpoints / campos enviados**: `netlify/functions/pix-create.mts` (transaction) e `netlify/functions/pix-check.mts` (check_status).
 - **Campos da resposta**: a leitura de `transactionId`, `copyPaste`, `qrcodeUrl` e `status` aceita nomes alternativos; inclua novos nomes nos mesmos arquivos se a FlevoPay mudar o formato.
 - **Status de pago**: a lista `PAID` em `netlify/functions/pix-check.mts` define quais status contam como pago (ex.: `paid`).
-- **Preço e frete**: `UNIT_PRICE` e `SHIPPING_PRICES` em `netlify/lib/flevopay.mts` (mantenha iguais aos valores exibidos no site).
+- **Preço e frete**: `UNIT_PRICE` e `SHIPPING_PRICES` em `src/lib/flevopay.server.ts` (mantenha iguais aos valores exibidos no site).
 - **Timeouts**: 15 s para gerar o PIX e 10 s para consultar, em `pix-create.mts` / `pix-check.mts`.
