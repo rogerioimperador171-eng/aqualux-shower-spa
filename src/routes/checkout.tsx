@@ -157,7 +157,14 @@ function Checkout() {
     setPixLoading(true); setPixError("");
     try {
       const r = await callFunction<PixResponse>("pix-create", { quantity, shipping, payerName: p.name.trim(), payerEmail: p.email.trim(), payerDocument: onlyDigits(p.cpf), payerPhone: onlyDigits(p.phone) }, 20000);
-      if (r.ok) setPix({ transactionId: r.transactionId, copyPaste: r.copyPaste, qrcodeUrl: r.qrcodeUrl });
+      if (r.ok) {
+        // Se a FlevoPay não mandar a imagem, o QR Code é gerado aqui mesmo a partir do código Copia e Cola.
+        let qr = r.qrcodeUrl;
+        if (!qr) {
+          try { const QR = await import("qrcode"); qr = await QR.toDataURL(r.copyPaste, { width: 480, margin: 1, errorCorrectionLevel: "M" }); } catch { qr = ""; }
+        }
+        setPix({ transactionId: r.transactionId, copyPaste: r.copyPaste, qrcodeUrl: qr });
+      }
       else setPixError(r.error || "Não foi possível gerar o PIX agora. Tente novamente.");
     } catch (err) {
       setPixError(err instanceof Error && err.name === "AbortError" ? "O servidor de pagamento demorou para responder. Tente novamente." : "Falha de conexão. Verifique sua internet e tente novamente.");
@@ -303,7 +310,7 @@ function Checkout() {
                 <Button onClick={generatePix} disabled={pixLoading} className="mt-3 h-11 w-full rounded-full text-sm font-bold"><Lock />{pixLoading ? "Gerando PIX…" : pixError ? "Tentar novamente" : "Pagar com Pix"}</Button>
               </> : <div className="mt-4 text-center">
                 <div className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground"><span className="size-2 animate-pulse rounded-full bg-primary" />Aguardando pagamento</div>
-                <img src={pix.qrcodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(pix.copyPaste)}`} alt="QR Code PIX" className="mx-auto mt-3 size-48 rounded-md border bg-background p-2" />
+                {pix.qrcodeUrl && <img src={pix.qrcodeUrl} alt="QR Code PIX" className="mx-auto mt-3 size-48 rounded-md border bg-background p-2" />}
                 <p className="mt-4 text-left text-[13px] font-medium">PIX Copia e Cola</p>
                 <textarea readOnly value={pix.copyPaste} rows={3} className="mt-1 w-full resize-none rounded-md border bg-muted p-3 text-base break-all" onFocus={(e) => e.currentTarget.select()} />
                 <Button onClick={copyPix} className="mt-3 h-11 w-full text-sm font-bold">{copied ? <><Check />PIX copiado!</> : <><Copy />COPIAR PIX</>}</Button>
